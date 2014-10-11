@@ -21,7 +21,7 @@
  */
 /*global $, spa */
 
-spa.utils = (function(){
+spa.util = (function(){
   var makeError, setConfigMap;
 
   //начало открытого конструктора makeError
@@ -59,8 +59,24 @@ spa.utils = (function(){
 	  settable_map = arg_map.settable_map,
 	  config_map = arg_map.config_map,
 	  key_name, error;
-  }
 
+	for ( key_name in input_map ) {
+	  if (input_map.hasOwnProperty(key_name)) {
+		if (settable_map.hasOwnProperty(key_name)) {
+		  config_map[key_name] = input_map[key_name];
+		}
+		else {
+		  error = makeError('Bad input', 'Setting config key |' + key_name + '| is not supported');
+		  throw  error;
+		}
+	  }
+	}
+  };
+
+  return {
+	makeError : makeError,
+	setConfigMap : setConfigMap
+  }
 
 
 })();

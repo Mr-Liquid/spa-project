@@ -61,7 +61,7 @@ spa.chat = (function(){  // пространство имен для модул�
 	  config_map : configMap
 	});
 	return true;
-  }
+  };
 
   //конец открытого метода configModule
 

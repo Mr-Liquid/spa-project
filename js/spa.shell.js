@@ -53,7 +53,13 @@ spa.shell = (function () {
       return $.extend( true, {}, stateMap.anchor_map );
     };
   //--------------------- END UTILITY METHODS ------------------
-
+  setJqueryMap = function () {
+	var $container = stateMap.$container;
+	jqueryMap = {
+	  $container : $container,
+	  $chat      : $container.find( '.spa-shell-chat' )
+	};
+  };
   //--------------------- BEGIN DOM METHODS --------------------
   // Begin DOM method /setJqueryMap/
 
@@ -116,14 +122,6 @@ spa.shell = (function () {
     return bool_return;
   };
 
-
-  setJqueryMap = function () {
-    var $container = stateMap.$container;
-      jqueryMap = {
-          $container : $container,
-          $chat      : $container.find( '.spa-shell-chat' )
-      };
-  };
   // End DOM method /setJqueryMap/
     // begin DOM method /toggleChat
   toggleChat = function(do_extend, callback){
@@ -233,6 +231,9 @@ spa.shell = (function () {
       $.uriAnchor.configModule({
          schema_map : configMap.anchor_schema_map
       });
+
+	spa.chat.configModule( {} );
+	spa.chat.initModule( jqueryMap.$chat );
 
       //обрабатываем мобытия изменения якоря
       //это делается после того как все функциональные модули
