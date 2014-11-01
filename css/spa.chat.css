@@ -42,9 +42,9 @@
   right : 0;
   width : 2em;
 }
-.spa-chat-closer:hover {
-  background : #800;
-}
+  .spa-chat-closer:hover {
+    background : #800;
+  }
 
 .spa-chat-head-toggle {
   position      : absolute;
@@ -100,9 +100,9 @@
   background : #ddd;
   color      : #404040;
 }
-.spa-chat-box input[type=text]:focus {
-  background : #fff;
-}
+  .spa-chat-box input[type=text]:focus {
+    background : #fff;
+  }
 
 .spa-chat-box div {
   float       : left;
@@ -114,10 +114,10 @@
   font-weight : 800;
   cursor      : pointer;
 }
-.spa-chat-box div:hover {
-  background-color: #444;
-  color      : #ff0;
-}
+  .spa-chat-box div:hover {
+    background-color: #444;
+    color      : #ff0;
+  }
 
 .spa-chat-head:hover .spa-chat-head-toggle {
   background : #aaa;
