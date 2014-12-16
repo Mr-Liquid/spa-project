@@ -98,7 +98,7 @@ spa.model = (function (){
     stateMap.user.id = user_map._id;
     stateMap.user.css_map = user_map.css_map;
     stateMap.people_cid_map[user_map._id] = stateMap.user;
-
+    chat.join(); // автоматический вход после завершения аутентификации
     // когда добавится объект chat, здесь нужно будет войти в чат
       $.gevent.publish('spa-login',[stateMap.user]);
   };
@@ -171,6 +171,7 @@ spa.model = (function (){
       logout = function(){ //публикует событие spa-logout
         var is_removed, user = stateMap.user;
          // когда добавится объект chat здесь нужно будет выйти из чата
+         chat._leave(); //автоматический выход из чата по завершению сеанса
          is_removed = removePerson(user);
          stateMap.user = stateMap.anon_user;
 
@@ -188,14 +189,16 @@ spa.model = (function (){
   })();
     chat = (function(){
       var
-        _publish_listchange,
-        _update_list, _leave_chat, join_chat;
+        _publish_listchange, _publish_updatechat,
+        _update_list, _leave_chat, get_chatee, join_chat, send_msg, set_chatee, chatee = null;
 
         //внутренние методы
 
         _update_list = function( arg_list){ //обновляет объект people послк получения нового списка людей.
           var i, person_map, make_person_map,
-              people_list = arg_list[ 0 ];
+              people_list = arg_list[ 0 ],
+              is_chatee_online = false;
+
         clearPeopleDb();
 
         PERSON:
@@ -214,10 +217,16 @@ spa.model = (function (){
               id: person_map._id,
               name: person_map.name
           };
+          if(chatee && chatee.id === make_person_map.id){ // если chatee присутствует в обновленном списке то true
+              is_chatee_online = true;
+          }
 
           makePerson( make_person_map );
         }
             stateMap.people_db.sort('name');
+            //если собеседник уже не в онлайн, сбросить chatee
+            //в результате чего возникает глобальное событие 'spa-setchatee'
+            if(chatee && !is_chatee_online){set_chatee("");}
         };
 
         _publish_listchange = function( arg_list ){ //публикует глобальное пользовательское событие spa-listchange сопровождаемое обновленным списком людей
@@ -225,15 +234,27 @@ spa.model = (function (){
             $.gevent.publish('spa-listchange',[arg_list]);
         };
 
+        _publish_updatechat = function(arg_list){ //публикует событие spa-updatechat, сопровождая его хэшем с информацией о сообщении
+            var msg_map = arg_list[0];
+
+            if(!chatee){
+                set_chatee(msg_map.sender_id);
+            }else if(msg_map.sender_id !== stateMap.user.id && msg.sender_id !== chatee.id){
+                set_chatee(msg_map.sender_id);
+            }
+
+            $.gevent.publish('spa-updatechat',[msg_map]);
+        };
+
         //конец внутренних методов
 
         _leave_chat = function(){ // отправляет серверу сообщение leavechat и очищает переменные состояния
             var sio = isFakeData ? spa.fake.mockSio : spa.data.getSio();
-
+            chatee = null;
             stateMap.is_connected = false;
             if( sio ) { sio.emit( 'leavechat') }
         }
-
+        get_chatee = function(){return chatee;};// метод возвращающий объект chatee
         join_chat = function(){ //вызывается, чтобы войти в чат. Он проверяет находится ли уже пользователь в сети stateMap.is_connected чтобы не регистрировать обрабочтик события listchange более одного раза
             var sio;
 
@@ -247,12 +268,50 @@ spa.model = (function (){
 
             sio = isFakeData ? spa.fake.mockSio : spa.data.getSio();
             sio.on('listchange', _publish_listchange);
+            sio.on('updatechat', _publish_updatechat);
             return true;
-        }
+        };
+
+        send_msg = function(msg_text){// метод отправляет текстовое сообщение и связанную с ним информацию
+          var msg_map,
+              sio = isFakeData ? spa.fake.mockSio : spa.data.getSio();
+
+            if(!sio){return false;} //отменяем отправку если нет соединиения
+            if(!(stateMap.user && chatee)){return false;}//или нет ни текущего собеседника либо его пользователя
+
+            msg_map = { //кончтруирование хеша сщдержащего сообщение и связанную с ним инфу
+              dest_id: chatee.id,
+              dest_name: chatee.name,
+              sender_id: stateMap.user.id,
+              msg_text: msg_text
+            };
+
+            _publish_updatechat([msg_map]); //публикация событий spa-updatechat, чтобы пользователь видел свои сообщения в окне чата.
+            sio.emit('updatechat', msg_map);
+            return true;
+        };
+
+        set_chatee = function(person_id){ // меняет объект chatee на указанный. Если если объект chatee совпадает с текущим то возвращаем false
+          var new_chatee;
+            new_chatee = stateMap.people_cid_map[person_id];
+          if(new_chatee){
+            if(chatee && chatee.id === new_chatee.id){return false}
+          }else {
+            new_chatee = null;
+          }
+            $.gevent.publish('spa-setchatee',{
+              old_chatee: chatee, new_chatee: new_chatee
+            });
+            chatee =  new_chatee;
+            return true;
+        };
 
         return {
             _leave: _leave_chat,
-            join: join_chat
+            get_chatee: get_chatee,
+            join: join_chat,
+            send_msg: send_msg,
+            set_chatee: set_chatee
         }
     })();
   initModule = function(){

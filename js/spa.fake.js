@@ -68,7 +68,7 @@ spa.fake = (function () {
   };
 
   mockSio = (function(){
-      var on_sio, emit_sio, callback_map = {}, send_listchange, listchange_idto;
+      var on_sio, emit_sio, emit_mock_msg, callback_map = {}, send_listchange, listchange_idto;
 
       on_sio = function(msg_type, callback){ // метод регестрирует обратный вызов для обработки сообщения указанного типа
         callback_map[msg_type] = callback;
@@ -96,13 +96,55 @@ spa.fake = (function () {
 //                  );
               }, 3000 );
           }
+
+          if(msg_type === 'updatechat' && callback_map.updatechat){
+            setTimeout(function(){
+              var user = spa.model.people.get_user();
+              callback_map.updatechat([{
+                  dest_id: user.id,
+                  dest_name: user.name,
+                  sender_id: data.dest_id,
+                  msg_text: 'Thanks for the note, ' + user.name
+              }]);
+            },2000);
+          }
+
+          if(msg_type === 'leavechat'){ // стираем ранее зарегестрированные обратные вызовы при получении сообщения leavechat. Это означает что пользователь завершил сеанс
+            //восстанавливаем состояние "не аутентифицирован"
+              delete callback_map.listchange;
+              delete callback_map.updatechat;
+
+              if(listchange_idto){
+                  clearTimeout(listchange_idto);
+                  listchange_idto = undefined;
+              }
+              send_listchange();
+          }
       };
+
+      emit_mock_msg = function(){ // посылаем подставное сообщение аутентификации пользователю каждые 8 секунд
+        setTimeout(function(){
+          var user = spa.model.people.get_user();
+          if(callback_map.updatechat){
+              callback_map.updatechat([{
+                  dest_id: user.id,
+                  dest_name: user.name,
+                  sender_id: 'id_04',
+                  msg_text: 'Hi there ' + user.name + '! Wilma here.'
+              }])
+          }else {
+              emit_mock_msg();
+          }
+        }, 8000);
+      }
+
 
       //Пытаемся воспользоваться обработчиком listchange один раз в секунду. Прекращаем попытки после первой удачной.
       send_listchange =  function(){
         listchange_idto = setTimeout(function(){
           if(callback_map.listchange){
             callback_map.listchange([peopleList]);
+            emit_mock_msg();
             listchange_idto = undefined;
           }else {
             send_listchange();
